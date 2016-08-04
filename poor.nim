@@ -4,10 +4,24 @@ import strtabs
 import httpclient
 import streams
 import strutils
-import progress, os
+import os
+import docopt
 
 const GH = "http://github.com"
 const GHS = "https://github.com"
+const doc = """
+Poor github cloner
+
+Usage:
+  poor clone <repository>
+  poor fill <path>...
+  poor (-h | --help)
+  poor (-v | --version)
+
+Options:
+  -h --help     Show this screen.
+  -v --version  Show version.
+"""
 
 proc cloneUrl(url: string, parent: string) =
   ## Poor clone a url in given parent directory
@@ -49,45 +63,11 @@ proc fillPoorFile(poorfile: string) =
   downloadFile(url, poorfile.replace(".poor", ""))
   removeFile(poorfile)
 
-proc help() =
-  ## Print help
-  echo "Poor gets the file tree of given github repository and lets you do selective download."
-  echo "Saves bandwidth (though wastes time).\n"
-  echo "Usage:"
-  echo "\tpoor <github_user>/<repo> : for generating file structure"
-  echo "\tpoor : for downloading files"
 
-if paramCount() == 0:
-  # Populate .poor files
-  var poorFiles = newSeq[string]()
+let args = docopt(doc, version="Poor v0.2.0")
 
-  for path in walkDirRec("./"):
-    if path.endsWith(".poor"):
-      poorFiles.add(path)
-
-  if len(poorFiles) == 0:
-    echo "No .poor files found !"
-    echo "Run poor --help for help"
-    quit(QuitFailure)
-  echo "Populating ", len(poorFiles), " .poor files"
-
-  let bar = newProgressBar(total=len(poorFiles))
-
-  bar.start()
-  for poorFile in poorFiles:
-    fillPoorFile(poorFile)
-    bar.increment()
-  bar.finish()
-  echo "\nAll done."
-
-elif paramCount() == 1:
-  # Poor clone a repository
-  let userInput = paramStr(1)
-
-  if (userInput == "--help") or
-     (userInput == "-h"):
-    help()
-    quit()
+if args["clone"]:
+  let userInput = $args["<repository>"]
 
   var repoUrl = ""
   if userInput.startsWith(GHS) or
@@ -107,7 +87,38 @@ elif paramCount() == 1:
 
   cloneUrl(repoUrl, repoName)
 
-  echo "Structure in place. Remove unwanted files and run <poor> inside the directory to get data."
+  echo "Structure in place."
 
-else:
-  help()
+if args["fill"]:
+
+  let arguments = args["<path>"]
+
+  # Populate .poor files
+  var poorFiles = newSeq[string]()
+
+  for i in 0..(arguments.len - 1):
+    if existsFile(arguments[i]):
+      if arguments[i].endsWith(".poor"):
+        poorFiles.add(arguments[i])
+
+    elif existsDir(arguments[i]):
+      for path in walkDirRec(arguments[i]):
+        if path.endsWith(".poor"):
+          poorFiles.add(path)
+
+    else:
+      echo arguments[i], " doesn't exist"
+
+  let allTasks = len(poorFiles)
+
+  if allTasks == 0:
+    echo "No .poor files to fill !"
+    quit(QuitFailure)
+  echo "Populating ", len(poorFiles), " .poor files"
+
+  for i, poorFile in poorFiles:
+    fillPoorFile(poorFile)
+    write(stdout, "\rDone ", (i + 1), "/", allTasks)
+    flushFile(stdout)
+
+  echo "\nAll done."

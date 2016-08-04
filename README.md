@@ -6,6 +6,8 @@ Saves bandwidth (though wastes time).
 Usage:
 
 ```
-poor <github_user>/<repo> : for generating file structure
-poor : for downloading files
+poor clone <repository>
+poor fill <path>...
+poor (-h | --help)
+poor (-v | --version)
 ```
