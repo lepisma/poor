@@ -25,7 +25,9 @@ Options:
 
 proc cloneUrl(url: string, parent: string) =
   ## Poor clone a url in given parent directory
-  let pageStream = newStringStream(getContent(url))
+  var client = newHttpClient()
+
+  let pageStream = newStringStream(client.getContent(url))
   let tree = parseHTML(pageStream)
 
   for link in tree.findAll("a"):
@@ -42,12 +44,15 @@ proc cloneUrl(url: string, parent: string) =
             discard link.attrs["rel"]
           except:
             cloneUrl(joinPath([GHS, href]), parent)
-        else:
+
+        elif contains(href, "/blob/master"):
           # This is a file
           let file = split(href, "/blob/master/")[1]
           var (dir, filename, ext) = splitFile(file)
+
           dir = joinPath(["./", parent, dir])
           filename = join([filename, ext, ".poor"])
+
           # Create directory and file with raw url
           if not existsDir(dir):
             createDir(dir)
@@ -64,7 +69,7 @@ proc fillPoorFile(poorfile: string) =
   removeFile(poorfile)
 
 
-let args = docopt(doc, version="Poor v0.2.0")
+let args = docopt(doc, version="Poor v0.2.1")
 
 if args["clone"]:
   let userInput = $args["<repository>"]
